@@ -1,0 +1,25 @@
+.web-welcome { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); text-align: center; }
+.web-welcome p { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.8rem; line-height: 1.8; }
+.web-welcome strong { color: var(--blue-strong); }
+.web-release-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+.web-welcome .web-release-actions { justify-content: center; }
+.web-offline-banner { margin: 0; padding: 0.65rem 1rem; color: var(--blue-strong); background: var(--surface-blue); text-align: center; font-size: 0.8rem; }
+.web-panel-dialog { width: min(100vw - 24px, 480px); padding: 0; }
+.web-dialog-layout { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: 86dvh; }
+.web-dialog-layout > .dialog-header { margin: 0; padding: 1.15rem; border-bottom: 1px solid var(--line); background: var(--surface-solid); }
+.web-dialog-layout > .dialog-header .icon-button { flex-shrink: 0; }
+.web-dialog-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1.15rem; padding-bottom: calc(1.15rem + env(safe-area-inset-bottom)); }
+.web-dialog-body > p:first-child { margin-top: 0; }
+.web-install-steps { padding-left: 1.65rem; margin: 1.2rem 0; }
+.web-install-steps li { padding: 0.25rem 0 0.65rem 0.2rem; line-height: 1.8; }
+.web-install-steps li::marker { color: var(--blue-strong); font-weight: 750; }
+.web-save-filename { overflow-wrap: anywhere; font-weight: 650; }
+.web-save-actions { display: grid; gap: 0.65rem; }
+.web-save-actions a { text-decoration: none; text-align: center; }
+.web-save-actions > * { min-height: 46px; justify-content: center; }
+#web-copy-value { min-height: 160px; user-select: text; -webkit-user-select: text; }
+@media (max-width: 640px) {
+  html.web-app input:not([type="checkbox"]):not([type="radio"]), html.web-app textarea, html.web-app select { font-size: 16px; }
+  html.web-app .dialog-footer, html.web-app .review-export-actions { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  html.web-app .lock-screen { padding-top: max(1rem, env(safe-area-inset-top)); align-content: start; }
+}

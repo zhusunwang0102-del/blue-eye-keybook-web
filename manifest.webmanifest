@@ -1,0 +1,27 @@
+{
+  "name": "蓝瞳密钥簿",
+  "short_name": "密钥簿",
+  "description": "离线优先、加密保存的私人 API 站点与令牌管理簿。",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#edf5ff",
+  "theme_color": "#edf5ff",
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "id": "./"
+}

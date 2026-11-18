@@ -1,0 +1,990 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#edf5ff" />
+    <meta name="description" content="蓝瞳密钥簿——离线优先、加密保存的私人 API 站点与令牌管理簿。" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="蓝瞳密钥簿" />
+    <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+    <title>蓝瞳密钥簿</title>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23121a2a' d='M12 24 9 7l15 10a28 28 0 0 1 16 0L55 7l-3 17a25 25 0 1 1-40 0Z'/%3E%3Cellipse cx='23' cy='31' rx='5' ry='7' fill='%234aa8ff'/%3E%3Cellipse cx='41' cy='31' rx='5' ry='7' fill='%234aa8ff'/%3E%3Cpath stroke='%23fff' stroke-width='2' stroke-linecap='round' d='m30 42 2 2 2-2'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./features.css" />
+    <link rel="stylesheet" href="./web.css" />
+    <link rel="stylesheet" href="./model-status.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <section id="lock-screen" class="lock-screen" aria-labelledby="lock-title">
+      <div class="lock-card">
+        <div class="lock-visual" aria-hidden="true">
+          <span class="orbit orbit-one"></span>
+          <span class="orbit orbit-two"></span>
+          <img src="./assets/black-cat-guardian.png" alt="" width="240" height="240" />
+        </div>
+        <div class="lock-copy">
+          <div class="eyebrow"><span class="status-dot"></span> 本机加密 · 联网查询可选</div>
+          <h1 id="lock-title">蓝瞳密钥簿</h1>
+          <p id="lock-caption">黑猫替你看着散落在各处的 API 钥匙。</p>
+        </div>
+
+        <form id="unlock-form" class="lock-form" hidden>
+          <div id="biometric-unlock-area" class="biometric-unlock-area" hidden>
+            <button id="biometric-unlock-button" class="secondary-button full-button" type="button">
+              <svg aria-hidden="true"><use href="#i-fingerprint"></use></svg>
+              使用指纹解锁
+            </button>
+            <div class="lock-divider"><span>或使用主密码</span></div>
+          </div>
+          <label class="field">
+            <span>主密码</span>
+            <span class="password-wrap">
+              <input id="unlock-password" type="password" autocomplete="current-password" required />
+              <button class="icon-button field-eye" type="button" data-toggle-password="unlock-password" aria-label="显示或隐藏密码">
+                <svg aria-hidden="true"><use href="#i-eye"></use></svg>
+              </button>
+            </span>
+          </label>
+          <p id="unlock-error" class="field-error" role="alert"></p>
+          <button class="primary-button full-button" type="submit">
+            <svg aria-hidden="true"><use href="#i-unlock"></use></svg>
+            解锁密钥簿
+          </button>
+          <button id="locked-import-button" class="text-button" type="button">从加密备份载入</button>
+        </form>
+
+        <form id="setup-form" class="lock-form" hidden>
+          <div class="setup-note">
+            <svg aria-hidden="true"><use href="#i-shield"></use></svg>
+            <span>第一次使用，请设置主密码。密码只用于本机解密，忘记后无法找回。</span>
+          </div>
+          <label class="field">
+            <span>设置主密码</span>
+            <span class="password-wrap">
+              <input id="setup-password" type="password" minlength="6" autocomplete="new-password" required />
+              <button class="icon-button field-eye" type="button" data-toggle-password="setup-password" aria-label="显示或隐藏密码">
+                <svg aria-hidden="true"><use href="#i-eye"></use></svg>
+              </button>
+            </span>
+          </label>
+          <label class="field">
+            <span>再输入一次</span>
+            <span class="password-wrap">
+              <input id="setup-password-confirm" type="password" minlength="6" autocomplete="new-password" required />
+              <button class="icon-button field-eye" type="button" data-toggle-password="setup-password-confirm" aria-label="显示或隐藏密码">
+                <svg aria-hidden="true"><use href="#i-eye"></use></svg>
+              </button>
+            </span>
+          </label>
+          <p id="setup-error" class="field-error" role="alert"></p>
+          <button class="primary-button full-button" type="submit">
+            <svg aria-hidden="true"><use href="#i-key"></use></svg>
+            创建我的密钥簿
+          </button>
+          <button id="setup-import-button" class="text-button" type="button">我已经有备份文件</button>
+        </form>
+        <a class="lock-manual-link" data-open-manual href="./manual/index.html" target="_blank" rel="noopener">第一次使用？查看使用手册</a>
+        <div class="web-welcome" data-web-only hidden>
+          <p><strong>网页版 · 无需注册</strong><br>在当前设备加密保存网址、令牌和备注。</p>
+          <div class="web-release-actions">
+            <button type="button" class="secondary-button" data-web-install><svg aria-hidden="true"><use href="#i-phone"></use></svg>添加到主屏幕</button>
+            <button type="button" class="secondary-button" data-web-update hidden>蓝瞳有新版 · 更新</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="vault-app" class="app-shell" hidden>
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="brand">
+            <img src="./assets/black-cat-guardian.png" alt="" width="48" height="48" />
+            <div>
+              <p class="brand-kicker">私人 API 小本本</p>
+              <h1>蓝瞳密钥簿</h1>
+            </div>
+          </div>
+          <div class="topbar-actions">
+            <button id="export-button" class="ghost-button desktop-action" type="button">
+              <svg aria-hidden="true"><use href="#i-download"></use></svg>
+              导出
+            </button>
+            <button id="overview-button" class="icon-button money-nav-button" type="button" aria-label="余额与总消耗" aria-pressed="false" title="余额与总消耗">
+              <span aria-hidden="true">￥</span>
+            </button>
+            <a id="help-button" class="icon-button help-nav-button" data-open-manual href="./manual/index.html" target="_blank" rel="noopener" aria-label="帮助与使用手册" title="帮助与使用手册">
+              <svg aria-hidden="true"><use href="#i-help"></use></svg>
+              <span aria-hidden="true">帮助</span>
+            </a>
+            <button id="settings-button" class="icon-button" type="button" aria-label="设置">
+              <svg aria-hidden="true"><use href="#i-settings"></use></svg>
+            </button>
+            <button id="lock-button" class="icon-button" type="button" aria-label="立即锁定">
+              <svg aria-hidden="true"><use href="#i-lock"></use></svg>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <p id="web-offline-banner" class="web-offline-banner" role="status" hidden>当前离线 · 可以取用本机密钥簿和手册；打开站点需要联网。</p>
+      <main id="home-page" class="main-content">
+        <section class="command-bar" aria-label="密钥簿工具">
+          <label class="search-box">
+            <svg aria-hidden="true"><use href="#i-search"></use></svg>
+            <input id="search-input" type="search" placeholder="搜索站点、分组、标签或备注" autocomplete="off" />
+            <kbd>⌘ K</kbd>
+          </label>
+          <div class="command-actions">
+            <button id="smart-add-button" class="secondary-button" type="button">
+              <svg aria-hidden="true"><use href="#i-sparkles"></use></svg>
+              粘贴识别
+            </button>
+            <button id="add-site-button" class="primary-button" type="button">
+              <svg aria-hidden="true"><use href="#i-plus"></use></svg>
+              新增网站
+            </button>
+          </div>
+        </section>
+
+        <section class="filter-strip" aria-label="分组筛选">
+          <div id="group-filters" class="group-filters"></div>
+          <div class="list-meta">
+            <button id="refresh-balances-button" class="balance-refresh-all text-button" type="button" hidden>
+              <svg aria-hidden="true"><use href="#i-refresh"></use></svg>
+              刷新余额
+            </button>
+            <span class="meta-divider"></span>
+            <span id="save-status">已自动保存</span>
+          </div>
+        </section>
+
+        <details class="note-filter-panel"><summary>标签与备注 <small id="note-filter-summary"></small></summary>
+          <div class="feature-grid"><label class="field"><span>找标签</span><input id="note-filter-search" type="search" placeholder="搜索自定义标签" /></label><label class="field"><span>标签排序</span><select id="note-filter-order"><option value="count-desc">站点数量多 → 少</option><option value="count-asc">站点数量少 → 多</option><option value="name">标签名称</option></select></label></div>
+          <div id="note-filter-tags" class="tag-options"></div>
+          <div class="feature-grid"><label class="feature-check"><input id="note-only" type="checkbox" />只看有备注的站点</label><label class="field"><span>站点展示顺序</span><select id="note-site-sort"><option value="manual">原有顺序</option><option value="tags-desc">标签数多 → 少</option><option value="tags-asc">标签数少 → 多</option><option value="note-desc">备注字数多 → 少</option></select></label></div>
+          <p class="section-hint">多选标签时显示包含任一选中标签的站点；不改变分组和手动排序。</p><button id="note-filter-clear" type="button" class="text-button">清除标签与备注筛选</button>
+        </details>
+        <div class="collection-bar">
+          <div class="collection-label"><span class="collection-dot" aria-hidden="true"></span><h2>我的站点</h2><span id="entry-count">0 个网站</span></div>
+          <div class="collection-tools"><button id="model-status-global-open" class="small-button" type="button"><svg aria-hidden="true"><use href="#i-search"></use></svg>跨站搜模型</button><button id="review-open" class="small-button" type="button">☆ 食用推荐</button><button id="arrange-sites-button" class="arrange-button" type="button" aria-pressed="false"><svg aria-hidden="true"><use href="#i-grip"></use></svg><span>排序</span></button></div>
+        </div>
+        <p id="arrange-hint" class="arrange-hint" hidden>拖动站点调整位置 · 常用仍置顶 · 点“完成”退出</p>
+        <section id="entry-list" class="entry-grid" aria-live="polite"></section>
+
+        <section id="empty-state" class="empty-state" hidden>
+          <img src="./assets/black-cat-guardian.png" alt="抱着银色钥匙的蓝眼睛黑猫" width="190" height="190" />
+          <h2 id="empty-title">还没有收进来的钥匙</h2>
+          <p id="empty-copy">可以规整填写，也可以把整段信息贴进来让黑猫认一认。</p>
+          <div class="empty-actions">
+            <button id="empty-smart-add" class="secondary-button" type="button">
+              <svg aria-hidden="true"><use href="#i-sparkles"></use></svg>
+              粘贴并识别
+            </button>
+            <button id="empty-add-site" class="primary-button" type="button">
+              <svg aria-hidden="true"><use href="#i-plus"></use></svg>
+              新增网站
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <section id="overview-page" class="main-content overview-page" aria-labelledby="overview-title" hidden>
+        <header class="overview-heading">
+          <div><button id="overview-back" class="text-button" type="button">‹ 站点</button><h2 id="overview-title">余额总览</h2></div>
+          <div class="overview-query-actions">
+            <button id="overview-enable-all" class="secondary-button" type="button">全部开启</button>
+            <button id="overview-refresh" class="secondary-button" type="button"><svg aria-hidden="true"><use href="#i-refresh"></use></svg><span>刷新账户</span></button>
+          </div>
+        </header>
+        <div class="overview-metrics">
+          <div><span>全部站点</span><strong id="overview-count-sites">0</strong></div>
+          <div><span>已存令牌</span><strong id="overview-count-tokens">0</strong></div>
+          <div><span>URL 记录</span><strong id="overview-count-urls">0</strong></div>
+          <div class="metric-alert"><span id="overview-count-low-label">待补充</span><strong id="overview-count-low">0</strong></div>
+        </div>
+        <p id="overview-count-note" class="overview-note"></p>
+        <div class="overview-view-bar">
+          <div class="overview-modes" role="group" aria-label="余额类型">
+            <button id="overview-mode-account" type="button" aria-pressed="true">余额</button>
+            <button id="overview-mode-token" type="button" aria-pressed="false">令牌</button>
+            <button id="overview-mode-spent" type="button" aria-pressed="false">总消耗</button>
+          </div>
+          <select id="overview-sort" aria-label="总览排序"><option value="balance-asc">余额升序</option><option value="balance-desc">余额降序</option><option value="name">站点名称</option><option value="updated">最近更新</option></select>
+        </div>
+        <p id="overview-mode-note" class="overview-note">账户总余额，与令牌额度分别统计。</p>
+        <details class="overview-filter-details">
+          <summary><span id="overview-filter-label">筛选与补充提醒线</span> <span id="overview-filter-summary">全部站点</span></summary>
+        <label class="search-box overview-search"><svg aria-hidden="true"><use href="#i-search"></use></svg><input id="overview-search" type="search" placeholder="搜索站点名称或分组" autocomplete="off" aria-label="搜索总览站点" /></label>
+        <div class="overview-controls">
+          <label>单位<select id="overview-unit"><option value="all">全部单位</option><option value="USD">站点美元 $</option><option value="CNY">站点人民币 ¥</option><option value="credits">积分</option><option value="points">原始额度点</option></select></label>
+          <label>状态<select id="overview-status"><option value="all">全部状态</option><option value="low">待补充</option><option value="positive">有余额 / 无限</option><option value="unknown">待查询 / 复查</option></select></label>
+          <label>分组<select id="overview-group"><option value="all">全部分组</option></select></label>
+        </div>
+        <details id="overview-thresholds" class="overview-thresholds">
+          <summary>设置补充提醒线 <span>默认仅提醒余额 ≤ 0</span></summary>
+          <p class="overview-note">余额不高于提醒线时标为“待补充”；按当前显示单位比较。陈旧或失败结果标为待复查。</p>
+          <div class="overview-threshold-grid">
+            <label>站点美元 $<input id="threshold-USD" data-balance-threshold="USD" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" /></label>
+            <label>站点人民币 ¥<input id="threshold-CNY" data-balance-threshold="CNY" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" /></label>
+            <label>原始额度点<input id="threshold-points" data-balance-threshold="points" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" /></label>
+            <label>积分<input id="threshold-credits" data-balance-threshold="credits" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" /></label>
+          </div>
+          <p id="overview-threshold-error" class="field-error" role="alert"></p>
+        </details>
+        </details>
+        <div id="overview-totals" class="overview-totals" aria-label="分单位缓存小计"></div>
+        <p id="overview-caveat" class="overview-note">缓存仅供参考；不同单位分别比较，不作汇率换算。有余额不代表接口可用。</p>
+        <div id="overview-rows" class="overview-rows" aria-live="polite"></div>
+      </section>
+
+      <button id="mobile-add-button" class="floating-add" type="button" aria-label="新增网站">
+        <svg aria-hidden="true"><use href="#i-plus"></use></svg>
+      </button>
+    </div>
+
+    <dialog id="site-detail-dialog" class="site-detail-dialog">
+      <div class="dialog-form site-detail-panel">
+        <header class="dialog-header site-detail-header">
+          <div class="site-detail-heading">
+            <span id="site-detail-initial" class="site-detail-initial" aria-hidden="true">站</span>
+            <div>
+              <p class="dialog-kicker" id="site-detail-kicker">站点详情</p>
+              <h2 id="site-detail-title">站点名称</h2>
+            </div>
+          </div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="site-detail-dialog" aria-label="关闭">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+
+        <div id="site-detail-body" class="site-detail-body"></div>
+
+        <footer class="dialog-footer site-detail-footer">
+          <div class="site-detail-order" aria-label="调整站点位置">
+            <span>位置</span>
+            <button id="site-detail-move-up" class="mini-icon-button" type="button" aria-label="上移">
+              <svg aria-hidden="true"><use href="#i-up"></use></svg>
+            </button>
+            <button id="site-detail-move-down" class="mini-icon-button" type="button" aria-label="下移">
+              <svg aria-hidden="true"><use href="#i-down"></use></svg>
+            </button>
+          </div>
+          <div class="site-detail-actions">
+            <button id="site-detail-delete" class="icon-button danger-icon-button" type="button" aria-label="删除站点">
+              <svg aria-hidden="true"><use href="#i-trash"></use></svg>
+            </button>
+            <button id="site-detail-pin" class="ghost-button" type="button">
+              <svg aria-hidden="true"><use href="#i-star"></use></svg>
+              <span id="site-detail-pin-label">设为常用</span>
+            </button>
+            <button id="site-detail-edit" class="primary-button" type="button">
+              <svg aria-hidden="true"><use href="#i-edit"></use></svg>
+              修改
+            </button>
+          </div>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="model-status-global-dialog" class="model-status-dialog" aria-labelledby="model-status-global-title">
+      <form class="dialog-form" id="model-status-global-form">
+        <header class="dialog-header">
+          <div><h2 id="model-status-global-title">跨站搜模型</h2></div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="model-status-global-dialog" aria-label="关闭跨站搜索">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <div class="model-status-scroll" id="model-status-global-scroll">
+        <div class="model-status-global-query">
+          <label class="model-status-search">
+            <svg aria-hidden="true"><use href="#i-search"></use></svg>
+            <input id="model-status-global-keyword" type="search" maxlength="120" placeholder="模型名或片段，如 opus 4 8" aria-label="搜索模型名或片段" autocomplete="off" spellcheck="false" />
+          </label>
+          <button id="model-status-global-run" class="primary-button" type="submit">搜索</button>
+          <button id="model-status-global-stop" class="ghost-button" type="button" hidden>停止</button>
+        </div>
+        <details id="model-status-global-options" class="model-status-global-options">
+          <summary>筛选与排序 <span id="model-status-global-active"></span></summary>
+          <div class="model-status-global-grid">
+            <label class="field"><span>最新一格颜色</span><select id="model-status-global-tone">
+              <option value="">不限</option><option value="good">🟢 绿色</option><option value="warning">🟡 黄色</option><option value="low">🔴 红色</option><option value="none">⚪ 灰色 / 无数据</option>
+            </select></label>
+            <label class="field"><span>统计时间</span><select id="model-status-global-window"><option value="1">近 1 小时</option><option value="6">近 6 小时</option><option value="12">近 12 小时</option><option value="24" selected>近 24 小时</option></select></label>
+            <label class="field"><span>最低成功率（%）</span><input id="model-status-global-success" type="number" min="0" max="100" step="any" inputmode="decimal" placeholder="不限" /></label>
+            <label class="field"><span>最长平均延迟（秒）</span><input id="model-status-global-latency" type="number" min="0" max="1000000000" step="any" inputmode="decimal" placeholder="不限" /></label>
+            <label class="field"><span>按哪种价格比较</span><select id="model-status-global-price-kind"><option value="input">输入价 / 百万 Token</option><option value="output">输出价 / 百万 Token</option><option value="perCall">按次价 / 次</option></select></label>
+            <label class="field"><span>最高公开基础价（$）</span><input id="model-status-global-max-price" type="number" min="0" max="1000000000000" step="any" inputmode="decimal" placeholder="不限" /></label>
+            <label class="field"><span>排序</span><select id="model-status-global-sort"><option value="match">匹配优先</option><option value="success">成功率较高优先</option><option value="latency">延迟较低优先</option><option value="price">价格较低优先</option></select></label>
+            <label class="field"><span>我的站点分组</span><select id="model-status-global-group"></select></label>
+            <label class="model-status-scope"><input id="model-status-global-all-sources" type="checkbox" />也查同站其他 Base URL</label>
+          </div>
+          <p class="section-hint">颜色按最新一格；若只有分组走势，会标明分组。灰色不代表整站没读到数据。价格为公开基础价。</p>
+        </details>
+        <p id="model-status-global-notice" class="model-status-count" role="status"></p>
+        <details id="model-status-global-coverage" class="model-status-global-options" hidden>
+          <summary id="model-status-global-coverage-title">来源核对</summary>
+          <div id="model-status-global-coverage-list" class="model-status-coverage"></div>
+        </details>
+        <div id="model-status-global-rows" class="model-status-list"></div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="model-status-dialog" class="model-status-dialog" aria-labelledby="model-status-title">
+      <div class="dialog-form">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker" id="model-status-site"></p>
+            <h2 id="model-status-title">模型状态</h2>
+          </div>
+          <a class="text-button" id="model-status-origin-link" target="_blank" rel="noopener noreferrer" hidden>打开原站</a>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="model-status-dialog" aria-label="返回站点详情">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <div class="model-status-scroll" id="model-status-scroll">
+        <div class="model-status-controls">
+          <label class="field"><span>统计来源</span><select id="model-status-source" aria-label="统计来源"></select></label>
+          <label class="field"><span>时间范围</span><select id="model-status-window" aria-label="时间范围">
+            <option value="1">近 1 小时</option><option value="6">近 6 小时</option>
+            <option value="12">近 12 小时</option><option value="24" selected>近 24 小时</option>
+          </select></label>
+        </div>
+        <div class="model-status-toolbar">
+          <label class="model-status-search">
+            <svg aria-hidden="true"><use href="#i-search"></use></svg>
+            <input id="model-status-filter" type="search" maxlength="120" placeholder="搜索模型名，如 son 4 6" aria-label="搜索模型名，可输入部分关键词" autocomplete="off" spellcheck="false" />
+          </label>
+          <button class="ghost-button" type="button" id="model-status-favourites" aria-label="只看常看模型" aria-pressed="false">常看</button>
+          <button class="secondary-button" type="button" id="model-status-refresh" aria-label="刷新" title="刷新"><svg aria-hidden="true"><use href="#i-refresh"></use></svg></button>
+        </div>
+        <details id="model-status-filters" class="model-status-global-options">
+          <summary>筛选与排序 <span id="model-status-filter-active"></span></summary>
+          <div id="model-status-filter-fields" class="model-status-global-grid"></div>
+          <p id="model-status-filter-status" class="section-hint" role="status"></p>
+        </details>
+        <div class="model-status-notes" role="status">
+          <p id="model-status-notice"></p><p id="model-status-time"></p>
+        </div>
+        <div class="model-status-list" id="model-status-rows"></div>
+        <details class="model-status-settings" id="model-status-settings">
+          <summary>添加模型广场或公开监控页</summary>
+          <label class="field"><span>页面网址（可选）</span>
+            <input id="model-status-page-url" type="url" inputmode="url" maxlength="1200" placeholder="https://…" />
+          </label>
+          <p class="section-hint">只读取支持的公开状态。暂不支持的页面保留跳转入口。</p>
+          <button class="ghost-button" type="button" id="model-status-save-page">保存并读取</button>
+          <p id="model-status-page-error" class="section-hint" role="status"></p>
+        </details>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="balance-dialog" class="sheet-dialog compact-dialog">
+      <form id="balance-form" class="dialog-form">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker">可选联网功能</p>
+            <h2 id="balance-dialog-title">余额查询</h2>
+          </div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="balance-dialog" aria-label="关闭">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <p class="dialog-help">手机直接连接所选站点。凭证在本机加密保存；不会自动登录、调用模型或充值。</p>
+        <label class="check-row">
+          <input id="balance-enabled-input" type="checkbox" />
+          <span class="custom-check"><svg aria-hidden="true"><use href="#i-check"></use></svg></span>
+          <span><strong>开启本站余额查询</strong><small>默认关闭；开启后仍需手动刷新</small></span>
+        </label>
+        <div class="balance-form-fields">
+          <label class="field"><span>查询站点 <em>已从本站网址填写，可修改</em></span>
+            <span class="clearable-input-wrap">
+              <input id="balance-origin-input" type="url" maxlength="2048" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="https://example.com（不要加 /v1）" />
+              <button class="field-clear-button" type="button" data-clear-target="balance-origin-input" aria-label="清空查询站点"><svg aria-hidden="true"><use href="#i-x"></use></svg></button>
+            </span>
+          </label>
+          <label class="field"><span>查询类型</span>
+            <select id="balance-mode-input">
+              <option value="account">账户总余额（需用户级凭证）</option>
+              <option value="token">单个令牌额度（不是账户余额）</option>
+            </select>
+          </label>
+          <label class="field" id="balance-user-id-field"><span>站点用户 ID <em>不是用户名</em></span>
+            <span class="clearable-input-wrap">
+              <input id="balance-user-id-input" type="text" inputmode="numeric" maxlength="16" autocomplete="off" placeholder="站点个人信息中的数字 ID" />
+              <button class="field-clear-button" type="button" data-clear-target="balance-user-id-input" aria-label="清空用户 ID"><svg aria-hidden="true"><use href="#i-x"></use></svg></button>
+            </span>
+          </label>
+          <label class="field"><span id="balance-credential-label">用户级访问令牌</span>
+            <span class="clearable-input-wrap">
+              <input id="balance-credential-input" type="password" maxlength="4096" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="不是登录密码，也不是普通聊天 API Key" />
+              <button class="field-clear-button" type="button" data-clear-target="balance-credential-input" aria-label="清空查询凭证"><svg aria-hidden="true"><use href="#i-x"></use></svg></button>
+            </span>
+          </label>
+          <p id="balance-credential-help" class="section-hint">请在站点个人设置查找“访问令牌 / Access Token”。它可能有较高账户权限，请优先使用站点提供的只读凭证，不要把密码填在这里。若找不到，先不要开启。</p>
+          <details class="balance-unit-details">
+            <summary>显示单位 <span>默认原始额度点，避免换算错误</span></summary>
+            <div class="balance-form-fields">
+              <label class="field"><span>单位</span>
+                <select id="balance-unit-input">
+                  <option value="points">额度点（不换算）</option>
+                  <option value="USD">站点美元（$）</option>
+                  <option value="CNY">站点人民币（¥）</option>
+                  <option value="credits">站点积分</option>
+                </select>
+              </label>
+              <label class="field" id="balance-divisor-field" hidden><span>每 1 单位对应多少额度点</span>
+                <span class="clearable-input-wrap">
+                  <input id="balance-divisor-input" type="number" min="0.000001" step="any" placeholder="例如 500000；请以站点规则为准" />
+                  <button class="field-clear-button" type="button" data-clear-target="balance-divisor-input" aria-label="清空换算点数"><svg aria-hidden="true"><use href="#i-x"></use></svg></button>
+                </span>
+              </label>
+              <button id="balance-common-divisor" class="text-button" type="button">使用常见换算：500,000 点 = 1 单位</button>
+              <p class="section-hint">美元、人民币首次选择时会填入常见值 500000，请按本站规则核对；只改变显示，不代表实际充值汇率。不确定时保留“额度点”。</p>
+            </div>
+          </details>
+          <label class="check-row">
+            <input id="balance-home-input" type="checkbox" />
+            <span class="custom-check"><svg aria-hidden="true"><use href="#i-check"></use></svg></span>
+            <span><strong>首页显示一行余额</strong><small>两类都开启时优先显示账户；总览中始终分开查看</small></span>
+          </label>
+        </div>
+        <details class="compatibility-note">
+          <summary>通用适配与使用说明</summary>
+          <p>蓝瞳依据通用 New API 文档提供只读查询，并未与各站点逐一合作或验证。特殊接口、登录方式、防护验证或站点更新，可能导致无法拉取或显示不一致。</p>
+          <p>金额换算由你按站点规则设置，结果为最近查询缓存，仅供参考；余额及账单以站点实际页面为准。蓝瞳不保证第三方服务的可用性、数据准确性或资金安全，不代为充值、交易或保管资金。</p>
+        </details>
+        <p id="balance-error" class="field-error" role="alert"></p>
+        <footer class="dialog-footer balance-dialog-footer">
+          <button id="balance-forget-button" class="ghost-button" type="button">清除查询配置</button>
+          <button class="primary-button" type="submit">保存配置</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="editor-dialog" class="sheet-dialog">
+      <form id="editor-form" class="dialog-form">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker" id="editor-kicker">新条目</p>
+            <h2 id="editor-title">收好一组 API 钥匙</h2>
+          </div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="editor-dialog" aria-label="关闭">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+
+        <div id="smart-result-note" class="smart-result-note" hidden>
+          <svg aria-hidden="true"><use href="#i-sparkles"></use></svg>
+          <span>已经按特征拆好了，再确认一下就能存档。</span>
+        </div>
+
+        <div class="form-grid">
+          <label class="field">
+            <span>网站名 <em>可不填</em></span>
+            <span class="clearable-input-wrap">
+              <input id="site-name-input" type="text" maxlength="60" placeholder="例如：月光中转站" />
+              <button class="field-clear-button" type="button" data-clear-target="site-name-input" aria-label="清空网站名">
+                <svg aria-hidden="true"><use href="#i-x"></use></svg>
+              </button>
+            </span>
+          </label>
+          <label class="field">
+            <span>分组 <em>可直接输入新分组</em></span>
+            <span class="clearable-input-wrap">
+              <input id="site-group-input" type="text" maxlength="30" list="group-options" placeholder="例如：便宜、Coding 专用" />
+              <button class="field-clear-button" type="button" data-clear-target="site-group-input" aria-label="清空分组">
+                <svg aria-hidden="true"><use href="#i-x"></use></svg>
+              </button>
+            </span>
+            <datalist id="group-options"></datalist>
+          </label>
+          <label class="field field-wide">
+            <span>网站网址</span>
+            <span class="clearable-input-wrap">
+              <input id="website-url-input" type="text" inputmode="url" autocapitalize="none" spellcheck="false" placeholder="https://example.com" />
+              <button class="field-clear-button" type="button" data-clear-target="website-url-input" aria-label="清空网站网址">
+                <svg aria-hidden="true"><use href="#i-x"></use></svg>
+              </button>
+            </span>
+          </label>
+        </div>
+
+        <div class="base-url-section">
+          <div class="section-heading">
+            <div>
+              <p class="dialog-kicker">Base URL</p>
+              <h3>一个主站可以放多个地址</h3>
+            </div>
+            <button id="add-base-url-row" class="small-button" type="button">
+              <svg aria-hidden="true"><use href="#i-plus"></use></svg>
+              再加一个
+            </button>
+          </div>
+          <div id="base-url-editor-list" class="base-url-editor-list"></div>
+          <p class="section-hint">只填网站网址时，会自动补成“网站网址/v1”。</p>
+        </div>
+
+        <div class="token-section">
+          <div class="section-heading">
+            <div>
+              <p class="dialog-kicker">令牌</p>
+              <h3>同一网站可以放多个</h3>
+            </div>
+            <button id="add-token-row" class="small-button" type="button">
+              <svg aria-hidden="true"><use href="#i-plus"></use></svg>
+              再加一个
+            </button>
+          </div>
+          <div id="token-editor-list" class="token-editor-list"></div>
+        </div>
+
+        <label class="check-row">
+          <input id="site-pinned-input" type="checkbox" />
+          <span class="custom-check"><svg aria-hidden="true"><use href="#i-check"></use></svg></span>
+          <span>
+            <strong>设为常用</strong>
+            <small>带蓝色星标并固定在列表前面</small>
+          </span>
+        </label>
+        <p id="editor-error" class="field-error" role="alert"></p>
+
+        <footer class="dialog-footer">
+          <button class="ghost-button" type="button" data-close-dialog="editor-dialog">取消</button>
+          <button class="primary-button" type="submit">
+            <svg aria-hidden="true"><use href="#i-check"></use></svg>
+            保存条目
+          </button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="smart-dialog" class="sheet-dialog compact-dialog">
+      <form id="smart-form" class="dialog-form">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker">快速录入</p>
+            <h2>把整段信息交给黑猫</h2>
+          </div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="smart-dialog" aria-label="关闭">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <p class="dialog-help">逗号、空格、换行、带标签或不带标签都可以。URL 和长令牌会优先按特征识别。</p>
+        <label class="field">
+          <span>原始信息</span>
+          <span class="clearable-input-wrap clearable-textarea-wrap">
+            <textarea
+              id="smart-input"
+              rows="7"
+              spellcheck="false"
+              placeholder="示例：月光站，https://example.com，https://api.example.com/v1，sk-很长的一串字符，写作用"
+            ></textarea>
+            <button class="field-clear-button" type="button" data-clear-target="smart-input" aria-label="清空原始信息">
+              <svg aria-hidden="true"><use href="#i-x"></use></svg>
+            </button>
+          </span>
+        </label>
+        <div class="smart-actions">
+          <button id="paste-from-clipboard" class="secondary-button" type="button">
+            <svg aria-hidden="true"><use href="#i-clipboard"></use></svg>
+            从剪贴板粘贴
+          </button>
+          <button class="primary-button" type="submit">
+            <svg aria-hidden="true"><use href="#i-sparkles"></use></svg>
+            识别并检查
+          </button>
+        </div>
+        <p id="smart-error" class="field-error" role="alert"></p>
+      </form>
+    </dialog>
+
+    <dialog id="settings-dialog" class="sheet-dialog">
+      <form class="dialog-form settings-form" method="dialog">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker">密钥簿设置</p>
+            <h2>安全、外观与备份</h2>
+          </div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="settings-dialog" aria-label="关闭设置" autofocus>
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+
+        <div id="settings-scroll" class="settings-scroll" role="region" aria-label="设置内容">
+        <section class="settings-section">
+          <h3>使用偏好</h3>
+          <div class="settings-grid">
+            <label class="field">
+              <span>外观</span>
+              <select id="theme-select">
+                <option value="system">跟随系统</option>
+                <option value="light">冰蓝银白</option>
+                <option value="dark">深海星夜</option>
+                <option value="cream">奶油金</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>闲置自动锁定</span>
+              <select id="auto-lock-select">
+                <option value="5">5 分钟</option>
+                <option value="15">15 分钟</option>
+                <option value="30">30 分钟</option>
+                <option value="60">1 小时</option>
+                <option value="0">不自动锁定</option>
+              </select>
+            </label>
+          </div>
+          <div class="theme-choices" role="group" aria-label="星猫配色">
+            <button type="button" class="theme-choice" data-theme-choice="light" aria-pressed="false"><span class="palette-preview palette-ice" aria-hidden="true">✦</span><span>冰蓝银白</span></button>
+            <button type="button" class="theme-choice" data-theme-choice="dark" aria-pressed="false"><span class="palette-preview palette-night" aria-hidden="true">☾</span><span>深海星夜</span></button>
+            <button type="button" class="theme-choice" data-theme-choice="cream" aria-pressed="false"><span class="palette-preview palette-cream" aria-hidden="true">✧</span><span>奶油金</span></button>
+          </div>
+          <button id="install-button" class="settings-action" type="button">
+            <span class="settings-action-icon"><svg aria-hidden="true"><use href="#i-phone"></use></svg></span>
+            <span><strong>安装到手机桌面</strong><small>像普通 App 一样打开，离线也能用</small></span>
+            <svg class="settings-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+          </button>
+        </section>
+
+        <section class="settings-section" data-web-only hidden>
+          <h3>网页版与离线使用</h3>
+          <p class="section-hint">网址、令牌、标签、备注和推荐都在本机处理。换设备可导出、载入加密备份；不同浏览器的密钥簿分别保存。</p>
+          <p class="section-hint">网页版可查看备份中已有的余额和历史金额。实时余额、用量查询与指纹解锁目前需使用 Android App。</p>
+          <p id="web-offline-state" class="section-hint" role="status">正在准备离线资源…</p>
+          <div class="web-release-actions">
+            <button id="web-check-update-button" class="secondary-button" type="button" hidden>检查更新</button>
+            <button id="web-update-button" class="secondary-button" type="button" data-web-update hidden>更新蓝瞳</button>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <div class="section-heading">
+            <div>
+              <h3>自定义分组</h3>
+              <p>改名会同步到已有条目。</p>
+            </div>
+          </div>
+          <div id="group-manager" class="group-manager"></div>
+          <div class="inline-add">
+            <input id="new-group-input" type="text" maxlength="30" placeholder="输入新分组名" />
+            <button id="add-group-button" class="small-button" type="button">添加</button>
+          </div>
+        </section>
+
+        <section class="settings-section">
+          <h3>余额查询</h3>
+          <p class="section-hint">所有站点均可配置通用 New API 查询，特殊站点可能不兼容；需 Android 版实际拉取。网页版只显示上次结果。查询结果及换算仅供参考，以站点余额和账单为准。</p>
+          <label class="check-row">
+            <input id="balance-auto-refresh-input" type="checkbox" />
+            <span class="custom-check"><svg aria-hidden="true"><use href="#i-check"></use></svg></span>
+            <span><strong>解锁后刷新已开启的站点</strong><small>默认关闭，无后台轮询；五分钟内不重复自动刷新</small></span>
+          </label>
+        </section>
+
+        <section class="settings-section">
+          <h3>加密与备份</h3>
+          <button id="biometric-settings-button" class="settings-action" type="button" hidden>
+            <span class="settings-action-icon"><svg aria-hidden="true"><use href="#i-fingerprint"></use></svg></span>
+            <span><strong id="biometric-settings-title">开启指纹解锁</strong><small id="biometric-settings-status">验证一次指纹，以后可快速解锁</small></span>
+            <svg class="settings-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+          </button>
+          <button id="settings-export-button" class="settings-action" type="button">
+            <span class="settings-action-icon"><svg aria-hidden="true"><use href="#i-download"></use></svg></span>
+            <span><strong>导出加密备份</strong><small>转移密码默认使用当前解锁密码</small><small id="backup-status">尚未导出过备份</small></span>
+            <svg class="settings-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+          </button>
+          <button id="settings-custom-backup-button" class="settings-action" type="button">
+            <span class="settings-action-icon"><svg aria-hidden="true"><use href="#i-key"></use></svg></span>
+            <span><strong>设置转移密码并导出</strong><small>为这份备份使用独立的转移密码</small></span>
+            <svg class="settings-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+          </button>
+          <button id="settings-import-button" class="settings-action" type="button">
+            <span class="settings-action-icon"><svg aria-hidden="true"><use href="#i-upload"></use></svg></span>
+            <span><strong>载入加密备份</strong><small>输入导出这份备份时使用的转移密码</small></span>
+            <svg class="settings-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+          </button>
+          <button id="change-password-button" class="settings-action" type="button">
+            <span class="settings-action-icon"><svg aria-hidden="true"><use href="#i-key"></use></svg></span>
+            <span><strong>更换主密码</strong><small>现有数据会用新密码重新加密</small></span>
+            <svg class="settings-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+          </button>
+        </section>
+
+        <section class="settings-section">
+          <h3>帮助与反馈</h3>
+          <a id="manual-button" class="settings-action" data-open-manual href="./manual/index.html" target="_blank" rel="noopener">
+            <span class="settings-action-icon"><svg aria-hidden="true"><use href="#i-log"></use></svg></span>
+            <span><strong>使用手册</strong><small>基础与进阶教程 · 离线阅读</small></span>
+            <svg class="settings-chevron" aria-hidden="true"><use href="#i-chevron-right"></use></svg>
+          </a>
+          <p class="section-hint">蓝瞳密钥簿 · 竹笋。有问题联系竹笋，欢迎反馈。</p>
+        </section>
+
+        <section class="settings-section data-summary">
+          <h3>本机数据</h3>
+          <div class="summary-numbers">
+            <span><strong id="settings-site-count">0</strong> 网站</span>
+            <span><strong id="settings-token-count">0</strong> 令牌</span>
+          </div>
+          <p>记录保存在本机加密存储中。开启余额查询后，凭证仅发送到你确认的站点；清理应用或浏览器数据前，请先导出备份。</p>
+          <p class="app-version" data-version="2.2.1">蓝瞳密钥簿 2.2.1 · 小黑猫替你收好每一把钥匙</p>
+        </section>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="activity-dialog" class="sheet-dialog activity-dialog" aria-labelledby="activity-title">
+      <div class="dialog-form activity-panel">
+        <header class="dialog-header"><div><p class="dialog-kicker">站点已有数据 · 只读查看</p><h2 id="activity-title">用量与日志</h2></div><button class="icon-button" type="button" data-close-dialog="activity-dialog" aria-label="关闭用量与日志"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+        <div class="activity-metrics">
+          <div><span>剩余额度</span><strong id="activity-remaining">尚未查询</strong></div>
+          <div><span>历史消耗</span><strong id="activity-used">尚未查询</strong></div>
+          <div><span>历史请求数</span><strong id="activity-requests">尚未查询</strong></div>
+        </div>
+        <p id="activity-summary-note" class="overview-note"></p>
+        <div class="activity-permission"><p id="activity-permission-note" class="overview-note"></p><div><button id="activity-enable" class="secondary-button" type="button">启用并查询</button><button id="activity-configure" class="secondary-button" type="button">配置账户查询</button><button id="activity-disable" class="text-button" type="button" hidden>关闭历史查询</button></div></div>
+        <div class="activity-tabs" role="group" aria-label="站点历史类型"><button type="button" data-activity-tab="logs" aria-pressed="true">使用日志</button><button type="button" data-activity-tab="recharges" aria-pressed="false">充值 / 入账</button><button type="button" data-activity-tab="orders" aria-pressed="false">支付订单</button></div>
+        <form id="activity-form">
+          <details class="activity-filters"><summary>筛选条件</summary>
+            <div id="activity-log-filters" class="activity-filter-grid">
+              <label>日期范围<select id="activity-range"><option value="today">今天</option><option value="7" selected>近 7 天</option><option value="30">近 30 天</option><option value="all">站点可查范围</option><option value="custom">自选日期</option></select></label>
+              <label id="activity-type-field">日志类型<select id="activity-type"><option value="0">全部类型</option><option value="2">消耗</option><option value="1">充值 / 入账</option><option value="5">系统 / 签到</option><option value="6">退款</option><option value="4">错误</option><option value="3">管理</option></select></label>
+              <div id="activity-date-fields" class="activity-date-fields" hidden><label>起始日期<input id="activity-start" type="date" /></label><label>结束日期<input id="activity-end" type="date" /></label></div>
+              <label>模型名称<span class="clearable-input-wrap"><input id="activity-model" maxlength="100" autocomplete="off" placeholder="可选" /><button class="field-clear-button" type="button" data-clear-target="activity-model" aria-label="清空模型筛选"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></span></label>
+              <label>令牌备注<span class="clearable-input-wrap"><input id="activity-token" maxlength="100" autocomplete="off" placeholder="可选，不填密钥" /><button class="field-clear-button" type="button" data-clear-target="activity-token" aria-label="清空令牌备注筛选"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></span></label>
+            </div>
+            <label id="activity-payment-field" hidden>支付金额单位<select id="activity-payment-unit"><option value="unknown">未确认 · 显示站点原值</option><option value="CNY">人民币 ¥（已按站点核对）</option><option value="USD">美元 $（已按站点核对）</option></select></label>
+          </details>
+          <div class="activity-query-row"><p id="activity-tab-note" class="overview-note"></p><button id="activity-query-button" class="primary-button" type="submit"><svg aria-hidden="true"><use href="#i-refresh"></use></svg>查询 / 刷新</button></div>
+        </form>
+        <div id="activity-period" class="activity-period"><span>所选期间消耗 <strong id="activity-period-quota">尚未查询</strong></span><span id="activity-period-rate"></span></div>
+        <p id="activity-status" class="activity-status" role="status"></p>
+        <p id="activity-cache-note" class="overview-note"></p>
+        <div id="activity-rows" class="activity-rows"></div>
+        <footer class="activity-pager"><button id="activity-prev" class="secondary-button" type="button">上一页</button><span id="activity-page-label">第 1 页</span><button id="activity-next" class="secondary-button" type="button">下一页</button></footer>
+        <details class="compatibility-note"><summary>历史范围与金额说明</summary><p>仅显示站点接口实际返回的记录。可查日期、历史保留、授权范围由站点决定；特殊站点可能不兼容。支付订单通常仅开放近 30 天，不保证涵盖兑换码、赠送或全部订阅。充值日志表示额度入账，不等于现金实付；支付金额与充值数量使用站点原值，不套用余额换算。历史消耗来自账户累计字段，不由当前页日志相加推算。</p><p>默认关闭，手机仅向已确认站点发送本人只读查询。每个页签仅缓存最近查询的一页及概要，随本机加密备份保存。网页版只查看缓存，不代为查询。</p></details>
+      </div>
+    </dialog>
+
+    <dialog id="change-password-dialog" class="sheet-dialog compact-dialog">
+      <form id="change-password-form" class="dialog-form">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker">安全设置</p>
+            <h2>更换主密码</h2>
+          </div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="change-password-dialog" aria-label="关闭">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <label class="field">
+          <span>当前密码</span>
+          <input id="current-password-input" type="password" autocomplete="current-password" required />
+        </label>
+        <label class="field">
+          <span>新密码</span>
+          <input id="new-password-input" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <label class="field">
+          <span>再输入一次新密码</span>
+          <input id="new-password-confirm-input" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <p id="change-password-error" class="field-error" role="alert"></p>
+        <footer class="dialog-footer">
+          <button class="ghost-button" type="button" data-close-dialog="change-password-dialog">取消</button>
+          <button class="primary-button" type="submit">确认更换</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="custom-backup-dialog" class="sheet-dialog compact-dialog" aria-labelledby="custom-backup-title">
+      <form id="custom-backup-form" class="dialog-form">
+        <header class="dialog-header">
+          <div><p class="dialog-kicker">导出加密备份</p><h2 id="custom-backup-title">设置转移密码</h2></div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="custom-backup-dialog" aria-label="关闭">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <p class="section-hint">这里设置的密码用于载入这份备份。当前蓝瞳继续使用现有解锁密码。</p>
+        <label class="field"><span>转移密码</span>
+          <input id="custom-backup-password" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <label class="field"><span>再输入一次</span>
+          <input id="custom-backup-confirm" type="password" minlength="6" autocomplete="new-password" required />
+        </label>
+        <p id="custom-backup-error" class="field-error" role="alert"></p>
+        <footer class="dialog-footer">
+          <button class="ghost-button" type="button" data-close-dialog="custom-backup-dialog">取消</button>
+          <button class="primary-button" type="submit">加密并导出</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="import-dialog" class="sheet-dialog compact-dialog">
+      <form id="import-form" class="dialog-form">
+        <header class="dialog-header">
+          <div>
+            <p class="dialog-kicker">载入备份</p>
+            <h2>验证转移密码</h2>
+          </div>
+          <button class="icon-button dialog-close" type="button" data-close-dialog="import-dialog" aria-label="关闭">
+            <svg aria-hidden="true"><use href="#i-x"></use></svg>
+          </button>
+        </header>
+        <div class="setup-note">
+          <svg aria-hidden="true"><use href="#i-shield"></use></svg>
+          <span>转移密码默认是<strong>原蓝瞳导出时的解锁密码</strong>。如果你在原设备的「设置 → 加密与备份」里给这份备份单独设过转移密码，就用那个密码。载入后，这个密码也用于解锁载入的密钥簿。</span>
+        </div>
+        <label class="field">
+          <span>转移密码</span>
+          <span class="password-wrap">
+            <input id="import-password-input" type="password" autocomplete="off" required />
+            <button class="icon-button field-eye" type="button" data-toggle-password="import-password-input" aria-label="显示或隐藏密码">
+              <svg aria-hidden="true"><use href="#i-eye"></use></svg>
+            </button>
+          </span>
+        </label>
+        <p id="import-error" class="field-error" role="alert"></p>
+        <button id="import-biometric-button" class="ghost-button" type="button" hidden>
+          <svg aria-hidden="true"><use href="#i-fingerprint"></use></svg>
+          <span>用指纹验证</span>
+        </button>
+        <footer class="dialog-footer">
+          <button class="ghost-button" type="button" data-close-dialog="import-dialog">取消</button>
+          <button class="primary-button" type="submit">验证并载入</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <dialog id="bulk-query-dialog" class="sheet-dialog compact-dialog" aria-labelledby="bulk-query-title">
+      <form method="dialog" class="dialog-form">
+        <header class="dialog-header"><div><p class="dialog-kicker">批量管理 · 仅开启已填好的查询</p><h2 id="bulk-query-title">全部开启账户查询</h2></div><button class="icon-button" value="cancel" aria-label="取消批量开启"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+        <p id="bulk-query-summary" class="section-hint"></p>
+        <p id="bulk-query-scope" class="section-hint"></p>
+        <div id="bulk-query-targets" class="bulk-query-targets" aria-label="本次查询目标"></div>
+        <details id="bulk-query-skipped"><summary id="bulk-query-skipped-label"></summary><ul id="bulk-query-skipped-list" class="bulk-query-skipped-list"></ul></details>
+        <label class="check-row"><input id="bulk-query-refresh" type="checkbox" /><span class="custom-check"><svg aria-hidden="true"><use href="#i-check"></use></svg></span><span><strong>开启后立即刷新</strong><small>只向上面列出的站点发送各自的凭证；不自动开启历史日志</small></span></label>
+        <p id="bulk-query-note" class="section-hint"></p>
+        <footer class="dialog-actions"><button class="ghost-button" value="cancel">取消</button><button id="bulk-query-accept" class="primary-button" value="confirm">全部开启并刷新</button></footer>
+      </form>
+    </dialog>
+
+    <dialog id="confirm-dialog" class="confirm-dialog">
+      <form method="dialog" class="dialog-form">
+        <div class="confirm-icon" id="confirm-icon">
+          <svg aria-hidden="true"><use href="#i-alert"></use></svg>
+        </div>
+        <h2 id="confirm-title">确认操作</h2>
+        <p id="confirm-message"></p>
+        <div class="confirm-actions">
+          <button id="confirm-cancel" class="ghost-button" value="cancel">取消</button>
+          <button id="confirm-accept" class="danger-button" value="confirm">确认</button>
+        </div>
+      </form>
+    </dialog>
+
+    <input id="import-file-input" type="file" accept=".json,application/json" hidden />
+    <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+
+    <svg class="icon-defs" aria-hidden="true">
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.8-2.5 2-2.5 4M12 17h.01" /></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.09A1.7 1.7 0 0 0 8.5 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3V9.6h.09A1.7 1.7 0 0 0 4.6 8.5a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.5 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.3.3.52.65.6 1 .08.36.1.73.09 1.1H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z" /></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></symbol>
+      <symbol id="i-unlock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 7.5-2" /></symbol>
+      <symbol id="i-fingerprint" viewBox="0 0 24 24"><path d="M5.8 10.7A6.5 6.5 0 0 1 12 5.5a6.5 6.5 0 0 1 6.4 5.5M4 14v-2a8 8 0 0 1 16 0v1.5M8 12a4 4 0 0 1 8 0v2.5c0 2.8-.8 5.1-2.2 6.5M12 9.5a2.5 2.5 0 0 0-2.5 2.5v2.2c0 2-.4 3.8-1.4 5.3M12 13v2.2c0 1.2-.2 2.4-.6 3.5M5.5 16.5c.4-1.2.5-2.5.5-4" /></symbol>
+      <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" /><path d="m11 12 8-8M16 7l2 2M14 9l2 2" /></symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v5c0 5-3.4 8.4-8 10-4.6-1.6-8-5-8-10V6l8-3Z" /><path d="m8.5 12 2.2 2.2 4.8-5" /></symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3ZM5 14l.8 2.2L8 17l-2.2.8L5 20l-.8-2.2L2 17l2.2-.8L5 14ZM19 13l.7 1.8 1.8.7-1.8.7L19 18l-.7-1.8-1.8-.7 1.8-.7L19 13Z" /></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16" /></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0 4 4m-4-4L8 8M4 20h16" /></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" /><circle cx="12" cy="12" r="2.5" /></symbol>
+      <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="m3 3 18 18M10.6 6.1A9 9 0 0 1 12 6c6 0 9.5 6 9.5 6a15 15 0 0 1-2.1 2.8M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6a9 9 0 0 0 3-.5M9.9 9.9a3 3 0 0 0 4.2 4.2" /></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></symbol>
+      <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14" /></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16v4ZM13.5 6.5l4 4" /></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M7 7l1 14h8l1-14M10 11v6M14 11v6" /></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="m14 4 6 6-3 1-4 4-1 5-2-2-4 4-1-1 4-4-2-2 5-1 4-4 1-3-6-6-3 3Z" /></symbol>
+      <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" /></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2" /></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6" /></symbol>
+      <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6" /></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z" /><path d="M12 9v5m0 3h.01" /></symbol>
+      <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="16" rx="2" /><path d="M9 5V3h6v2M9 10h6M9 14h6M9 18h4" /></symbol>
+      <symbol id="i-phone" viewBox="0 0 24 24"><rect x="6" y="2" width="12" height="20" rx="3" /><path d="M10 18h4" /></symbol>
+      <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" /></symbol>
+      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 7v5h-5M4 17v-5h5M19 12a7 7 0 0 0-12-5L4 10m16 4-3 3A7 7 0 0 1 5 12" /></symbol>
+      <symbol id="i-log" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></symbol>
+      <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-6 4 12 3-6h4"/></symbol>
+      <symbol id="i-grip" viewBox="0 0 24 24"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01" stroke-width="4" stroke-linecap="round" /></symbol>
+      <symbol id="i-overview" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><path d="M14 21v-4m3.5 4v-7M21 21V11"/></symbol>
+      <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="4" stroke-linecap="round" /></symbol>
+    </svg>
+
+    <dialog id="site-notes-dialog" class="sheet-dialog compact-dialog" aria-labelledby="site-notes-title"><form id="site-notes-form" class="dialog-form">
+      <header class="dialog-header"><div><p class="dialog-kicker" id="site-notes-site"></p><h2 id="site-notes-title">自定义标签和备注</h2></div><button class="icon-button" type="button" data-close-dialog="site-notes-dialog" aria-label="返回站点详情"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+      <p class="section-hint">标签可多选，与分组独立。保存后可从首页搜索，也可导入食用推荐。</p>
+      <div class="inline-add"><input id="site-tag-new" maxlength="32" placeholder="输入自定义标签" /><button id="site-tag-add" type="button" class="small-button">添加</button></div>
+      <label class="field"><span>搜索标签</span><input id="site-tag-search" type="search" /></label>
+      <p id="site-tag-count" class="section-hint"></p><div id="site-tag-options" class="tag-options"></div>
+      <label class="field"><span>自定义备注</span><textarea id="site-note-input" rows="6" maxlength="6000" placeholder="可以写你对这个中转站的看法，或记录你的推荐链接。"></textarea></label>
+      <p id="site-notes-error" class="field-error" role="alert"></p><footer class="dialog-footer"><button type="button" class="ghost-button" data-close-dialog="site-notes-dialog">取消</button><button type="submit" class="primary-button">保存备注</button></footer>
+    </form></dialog>
+
+    <dialog id="review-dialog" class="sheet-dialog review-dialog" aria-labelledby="review-title"><div class="dialog-form">
+      <header class="dialog-header"><div><p class="dialog-kicker">个人品鉴 · 本机编辑与导出</p><h2 id="review-title">食用推荐</h2></div><button class="icon-button" type="button" data-close-dialog="review-dialog" aria-label="关闭食用推荐"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+      <div class="feature-grid"><label class="field"><span>标题</span><input id="review-heading" maxlength="80" /></label><label class="field"><span>署名（可选）</span><input id="review-author" maxlength="40" /></label><label class="field"><span>图片配色</span><select id="review-theme"><option value="light">冰蓝银白</option><option value="dark">深海星夜</option><option value="cream">奶油金</option></select></label></div>
+      <div class="review-toolbar"><button id="review-choose" type="button" class="secondary-button">批量选择站点</button><span id="review-count" class="section-hint"></span></div>
+      <p class="section-hint">草稿自动加密保存。拖动卡片把手调整顺序，也可用 ↑ ↓。网址、历史金额与调用次数可按站点选择展示，带入已有记录后仍可修改；勾选的网址同时进入推荐图片和文案 TXT。</p>
+      <div id="review-cards" class="review-cards"></div><p id="review-error" class="field-error" role="alert"></p>
+      <label class="review-text-format"><span>TXT 导出内容</span><select id="review-text-mode"><option value="review">食用推荐文案</option><option value="sites">全部站点清单</option></select></label>
+      <p id="review-text-hint" class="section-hint">推荐文案包含当前所选站点的评分与评价；也可切换成全部站点清单。</p>
+      <div class="review-export-actions"><button id="review-preview" type="button" class="secondary-button">生成预览</button><button id="review-images" type="button" class="primary-button">导出图片</button><button id="review-text" type="button" class="secondary-button">导出 TXT</button></div>
+      <p id="review-export-status" class="section-hint" role="status">图片宽 750，单张最高 6000；超出自动分图并打包 ZIP。另附应用署名与作者内容说明。</p><div id="review-previews" class="review-previews"></div>
+    </div></dialog>
+    <dialog id="review-picker-dialog" class="sheet-dialog compact-dialog" aria-labelledby="review-picker-title"><div class="dialog-form">
+      <header class="dialog-header"><h2 id="review-picker-title">选择已保存站点</h2><button class="icon-button" type="button" data-close-dialog="review-picker-dialog" aria-label="返回推荐编辑"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+      <input id="review-picker-search" type="search" placeholder="搜索站点、分组、标签或备注" /><div class="review-toolbar"><button id="review-picker-all" type="button" class="text-button">选中当前搜索结果</button><button id="review-picker-none" type="button" class="text-button">清除当前搜索结果</button></div>
+      <p id="review-picker-count" class="section-hint"></p><div id="review-picker-list" class="tag-options"></div><p id="review-picker-error" class="field-error"></p>
+      <footer class="dialog-footer"><button type="button" class="ghost-button" data-close-dialog="review-picker-dialog">取消</button><button id="review-picker-save" type="button" class="primary-button">确认选择</button></footer>
+    </div></dialog>
+    <dialog id="web-install-dialog" class="sheet-dialog web-panel-dialog" aria-labelledby="web-install-title">
+      <div class="web-dialog-layout">
+        <header class="dialog-header"><div><p class="dialog-kicker">随时打开你的密钥簿</p><h2 id="web-install-title">添加到主屏幕</h2></div><button class="icon-button" type="button" data-web-close="web-install-dialog" aria-label="关闭桌面添加说明"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+        <div class="web-dialog-body"><p id="web-install-description"></p><ol id="web-install-steps" class="web-install-steps"></ol><button id="web-install-now" class="primary-button full-button" type="button" hidden>添加到桌面</button><p id="web-install-status" class="section-hint" role="status"></p><p class="section-hint">建议先添加到桌面，再创建密钥簿。已有密钥簿可在原入口导出加密备份，再从桌面图标打开并载入。</p></div>
+      </div>
+    </dialog>
+    <dialog id="web-copy-dialog" class="sheet-dialog web-panel-dialog" aria-labelledby="web-copy-title">
+      <div class="web-dialog-layout">
+        <header class="dialog-header"><h2 id="web-copy-title">长按复制内容</h2><button class="icon-button" type="button" data-web-close="web-copy-dialog" aria-label="关闭复制内容"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+        <div class="web-dialog-body"><p class="section-hint">浏览器未允许自动复制。请长按下方内容，选择“全选 → 复制”。</p><textarea id="web-copy-value" readonly rows="5" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="待复制的内容"></textarea></div>
+      </div>
+    </dialog>
+    <dialog id="web-save-dialog" class="sheet-dialog web-panel-dialog" aria-labelledby="web-save-title">
+      <div class="web-dialog-layout">
+        <header class="dialog-header"><div><p class="dialog-kicker">文件已在本机生成</p><h2 id="web-save-title">选择保存方式</h2></div><button class="icon-button" type="button" data-web-close="web-save-dialog" aria-label="取消文件导出"><svg aria-hidden="true"><use href="#i-x"></use></svg></button></header>
+        <div class="web-dialog-body"><p id="web-save-filename" class="web-save-filename"></p><div class="web-save-actions"><button id="web-save-share" class="primary-button" type="button" hidden>分享 / 保存到文件</button><button id="web-save-download" class="secondary-button" type="button">下载文件</button><a id="web-save-open" class="ghost-button" target="_blank" rel="noopener">打开文件</a></div><p id="web-save-status" class="section-hint" role="status">图片也可点“打开文件”后长按保存。TXT、ZIP 和备份请选择下载，或在系统分享中保存到“文件”。</p></div>
+      </div>
+    </dialog>
+    <script src="./web.js" defer></script>
+    <script src="./features.js" defer></script>
+    <script src="./model-status.js" defer></script>
+    <script src="./app.js" defer></script>
+  </body>
+</html>
