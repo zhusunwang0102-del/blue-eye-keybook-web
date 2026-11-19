@@ -1,4 +1,4 @@
-const CACHE_NAME = "blue-eye-keybook-web-6b50da58b6f921e3";
+const CACHE_NAME = "blue-eye-keybook-web-c752faf5bfe56bd9";
 const APP_SHELL = [
   "./",
   "./app.js",

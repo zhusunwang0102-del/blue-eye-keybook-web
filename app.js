@@ -610,11 +610,13 @@ const BALANCE_ERROR_MESSAGES = {
   response: "站点返回格式不兼容，未更新余额",
   api: "站点拒绝查询，请检查凭证或接口是否开放",
   cancelled: "查询已取消",
-  native: "余额查询目前仅支持 Android 新版"
+  browser: "浏览器未能读取此站，请检查网络，或请站方允许蓝瞳网页跨域查询",
+  native: "当前设备暂不支持余额查询"
 };
 
 function supportsBalanceQuery() {
-  return typeof window.BlueEyeNative?.requestBalance === "function";
+  return typeof window.BlueEyeNative?.requestBalance === "function"
+    || (typeof window.fetch === "function" && typeof window.AbortController === "function");
 }
 
 function normalizeBalanceOrigin(value) {
@@ -692,7 +694,7 @@ function fillBalanceForm(site, mode) {
   dom.balanceUnit.value = config.unit;
   dom.balanceDivisor.value = config.unit === "points" ? "" : String(config.divisor);
   dom.balanceHome.checked = config.showOnHome;
-  dom.balanceError.textContent = supportsBalanceQuery() ? "" : "此设备只能保存配置及查看上次结果；请在 Android 新版查询。";
+  dom.balanceError.textContent = supportsBalanceQuery() ? "" : "当前浏览器无法查询，请更新浏览器后重试。";
   updateBalanceForm();
 }
 
@@ -796,7 +798,7 @@ function makeBalanceSection(site, mode = "account") {
   const status = busy ? "正在查询…"
     : balance.lastError ? `${BALANCE_ERROR_MESSAGES[balance.lastError]}${balance.cache ? "；下方是上次结果" : ""}`
     : !balance.enabled ? "查询未开启 · 点配置后可启用"
-    : !supportsBalanceQuery() ? "网页版仅显示上次结果，请在 Android 新版刷新"
+    : !supportsBalanceQuery() ? "当前浏览器无法查询，显示上次结果"
     : balance.cache ? "仅为最近查询结果，不代表实时余额" : "已配置，点刷新获取余额";
   section.append(heading, value, makeElement("p", { className: `balance-status${balance.lastError ? " is-error" : ""}`, text: status }));
   if (balance.cache) {
@@ -806,7 +808,79 @@ function makeBalanceSection(site, mode = "account") {
   return section;
 }
 
-function nativeBalanceRequest(config) {
+async function browserBalanceRequest(config) {
+  const origin = normalizeBalanceOrigin(config.origin);
+  const credential = String(config.credential || "").trim().replace(/^Bearer\s+/i, "").trim();
+  const account = config.mode === "account";
+  if (!origin || !["account", "token"].includes(config.mode)
+    || !/^[!-~]{8,4096}$/.test(credential)
+    || (account && !/^[1-9][0-9]{0,15}$/.test(String(config.userId)))) {
+    return { ok: false, code: "configuration" };
+  }
+  const controller = new AbortController();
+  const id = uid("web-balance");
+  let timedOut = false;
+  const timer = window.setTimeout(() => { timedOut = true; controller.abort(); }, 12000);
+  state.balanceRequests.set(id, { timer, resolve() { controller.abort(); } });
+  const maxBytes = 128 * 1024;
+  try {
+    const headers = { Accept: "application/json", Authorization: `Bearer ${credential}` };
+    if (account) headers["New-Api-User"] = config.userId;
+    const path = account ? "/api/user/self" : "/api/usage/token/";
+    const response = await fetch(origin + path, {
+      method: "GET", headers, credentials: "omit", referrerPolicy: "no-referrer",
+      redirect: "manual", mode: "cors", cache: "no-store", signal: controller.signal
+    });
+    if (response.type === "opaqueredirect" || (response.status >= 300 && response.status < 400)) {
+      return { ok: false, code: "redirect" };
+    }
+    if (response.status === 401 || response.status === 403) return { ok: false, code: "auth" };
+    if (response.status === 404 || response.status === 405) return { ok: false, code: "unsupported" };
+    if (response.status === 429) return { ok: false, code: "rate_limit" };
+    if (!response.ok) return { ok: false, code: "http" };
+    if (Number(response.headers.get("content-length")) > maxBytes || !response.body) {
+      return { ok: false, code: "response" };
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let size = 0, text = "";
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > maxBytes) {
+          controller.abort();
+          return { ok: false, code: "response" };
+        }
+        text += decoder.decode(value, { stream: true });
+      }
+    } finally { reader.releaseLock(); }
+    if (controller.signal.aborted) return { ok: false, code: timedOut ? "timeout" : "cancelled" };
+    let body;
+    try { body = JSON.parse(text + decoder.decode()); }
+    catch { return { ok: false, code: "response" }; }
+    if (body?.success !== true && body?.code !== true) return { ok: false, code: "api" };
+    const data = body.data;
+    const unlimited = !account && data?.unlimited_quota === true;
+    const rawQuota = unlimited ? "0" : data?.[account ? "quota" : "total_available"];
+    if (!["number", "string"].includes(typeof rawQuota) || !validBalanceQuota(rawQuota)) {
+      return { ok: false, code: "response" };
+    }
+    return { ok: true, mode: config.mode, rawQuota: String(rawQuota), unlimited,
+      usedQuota: account ? historyNumber(data.used_quota) : null,
+      requestCount: account ? historyNumber(data.request_count, true) : null };
+  } catch {
+    return { ok: false, code: controller.signal.aborted ? (timedOut ? "timeout" : "cancelled") : "browser" };
+  } finally {
+    controller.abort();
+    window.clearTimeout(timer);
+    state.balanceRequests.delete(id);
+  }
+}
+
+function requestBalance(config) {
+  if (typeof window.BlueEyeNative?.requestBalance !== "function") return browserBalanceRequest(config);
   return new Promise((resolve) => {
     if (!supportsBalanceQuery()) return resolve({ok: false, code: "native"});
     const id = uid("balance");
@@ -880,7 +954,7 @@ async function refreshSiteBalance(siteId, quiet = false, mode = "account") {
   const configObject = site[property];
   state.balanceBusySiteIds.add(busyKey);
   refreshSiteViews();
-  const result = await nativeBalanceRequest(config);
+  const result = await requestBalance(config);
   if (epoch !== state.balanceEpoch || !state.data?.sites.includes(site)) return false;
   state.balanceBusySiteIds.delete(busyKey);
   if (site[property] !== configObject || !site[property].enabled || balanceSnapshotKey(site[property]) !== snapshot) {
@@ -984,7 +1058,7 @@ async function openBulkQueries(mode = "account") {
   dom.bulkQueryAccept.disabled=!plan.pending.length;
   dom.bulkQueryAccept.textContent=dom.bulkQueryRefresh.checked?"全部开启并刷新":"全部开启";
   $("bulk-query-note").textContent=!plan.pending.length?"没有可直接开启的配置。请先为跳过的站点补齐信息；已开启的站点可直接点总览的刷新。"
-    : supportsBalanceQuery()?"手机将直连上述每个站点，分别使用该站已保存的凭证；不会发送给其他站点或我们的服务器。"
+    : supportsBalanceQuery()?"此设备将直连上述每个站点，分别使用该站已保存的凭证。浏览器查询需要站点允许跨域读取。"
     : "此设备只保存开关。实际查询请在 Android 新版进行。";
   const result=await new Promise((resolve)=>{
     dom.bulkQueryDialog.addEventListener("close",()=>resolve({confirmed:dom.bulkQueryDialog.returnValue === "confirm",refresh:dom.bulkQueryRefresh.checked}),{once:true});

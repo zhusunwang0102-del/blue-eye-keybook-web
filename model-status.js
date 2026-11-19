@@ -11,7 +11,7 @@
     timeout: "读取超时，可以稍后刷新",
     rate_limit: "站点限制查询频率，请稍后再试",
     network: "连接失败，请检查网络或站点地址",
-    browser: "浏览器无法直接读取此站，可用安卓端或打开原站",
+    browser: "浏览器未能读取此站，可能是站点未允许跨域或网络异常，可打开原站查看",
     native: "请更新安卓端后再直接查询",
     configuration: "此来源不能用来查询公开状态",
     http: "站点暂时无法返回数据",
@@ -400,7 +400,8 @@
   }
 
   function read(source, kind, hours, model, signal) {
-    return window.BlueEyeNative ? nativeRead(source, kind, hours, model, signal) : browserRead(source, kind, hours, model, signal);
+    return typeof window.BlueEyeNative?.requestModelStatus === "function"
+      ? nativeRead(source, kind, hours, model, signal) : browserRead(source, kind, hours, model, signal);
   }
 
   const fresh = (entry) => entry && Date.now() - entry.time < FRESH_MS;
@@ -450,7 +451,7 @@
     if (first.ok && first.kind === "stats") return first;
     const partial = first.ok ? first : null;
     const reason = partial ? "no_samples" : first.code;
-    if (!partial && !["auth", "unsupported", "response", "api"].includes(reason)) return first;
+    if (!partial && !["auth", "unsupported", "response", "api", "browser"].includes(reason)) return first;
     const pricing = await getPricing();
     if (signal.aborted) return { ok: false, code: "cancelled" };
     if (pricing?.rows.some(hasStats)) return { ok: true, kind: "stats", rows: pricing.rows, market: true };
